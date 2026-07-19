@@ -176,6 +176,49 @@ export const INITIAL_PRODUCTS: Product[] = [
   }
 ];
 
+export const INITIAL_SUPPLIERS = [
+  {
+    grossist: 'Cogepha',
+    region: 'Nord-Ouest',
+    contactName: 'Service commercial Cogepha',
+    phone: '+216 71 000 101',
+    email: 'cogepha@pharmasmart.tn',
+    leadTimeDays: 2,
+    serviceLevel: 'Excellent',
+    notes: 'Prioritaire pour les génériques et les réassorts urgents.'
+  },
+  {
+    grossist: 'Medigros',
+    region: 'Grand Tunis',
+    contactName: 'Support Medigros',
+    phone: '+216 71 000 202',
+    email: 'medigros@pharmasmart.tn',
+    leadTimeDays: 3,
+    serviceLevel: 'Bon',
+    notes: 'Bien positionné sur l’hygiène, le bien-être et les compléments.'
+  },
+  {
+    grossist: 'PCT',
+    region: 'National',
+    contactName: 'Plateforme PCT',
+    phone: '+216 71 000 303',
+    email: 'pct@pharmasmart.tn',
+    leadTimeDays: 1,
+    serviceLevel: 'Excellent',
+    notes: 'Canal stratégique pour sécuriser les ruptures et les volumes.'
+  },
+  {
+    grossist: 'Direct Lab',
+    region: 'Fabricants',
+    contactName: 'Relations laboratoire',
+    phone: '+216 71 000 404',
+    email: 'directlab@pharmasmart.tn',
+    leadTimeDays: 4,
+    serviceLevel: 'Moyen',
+    notes: 'Approvisionnement direct utile pour les références à forte marge.'
+  }
+];
+
 export const INITIAL_SENSORS: SensorReading[] = [
   {
     id: 's1',

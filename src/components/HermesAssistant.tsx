@@ -1,14 +1,16 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { ChatMessage } from '../types';
-import { Send, Mic, Sparkles, AlertTriangle, ArrowRight, CornerDownLeft, Volume2, Square } from 'lucide-react';
+import { Send, Mic, Sparkles, Volume2, Square, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface HermesAssistantProps {
-  onNewUserMessage: (text: string) => void;
-  chatHistory: ChatMessage[];
-  isWaitingForModel: boolean;
-  onSaveToDrive: (title: string, content: string) => Promise<boolean>;
-  isDriveConnected: boolean;
+  readonly onNewUserMessage: (text: string) => void;
+  readonly onApproveAction: (messageId: string) => void;
+  readonly onRejectAction: (messageId: string) => void;
+  readonly chatHistory: ChatMessage[];
+  readonly isWaitingForModel: boolean;
+  readonly onSaveToDrive: (title: string, content: string) => Promise<boolean>;
+  readonly isDriveConnected: boolean;
 }
 
 const SUGGESTIONS = [
@@ -19,8 +21,30 @@ const SUGGESTIONS = [
   "Il y a un trou de garde dimanche ?"
 ];
 
+const WAVEFORM_BARS = [
+  { id: 'bar-1', height: 1 },
+  { id: 'bar-2', height: 2 },
+  { id: 'bar-3', height: 3 },
+  { id: 'bar-4', height: 4 },
+  { id: 'bar-5', height: 5 },
+  { id: 'bar-6', height: 4 },
+  { id: 'bar-7', height: 3 },
+  { id: 'bar-8', height: 2 },
+  { id: 'bar-9', height: 1 },
+  { id: 'bar-10', height: 2 },
+  { id: 'bar-11', height: 3 },
+  { id: 'bar-12', height: 4 },
+  { id: 'bar-13', height: 5 },
+  { id: 'bar-14', height: 4 },
+  { id: 'bar-15', height: 3 },
+  { id: 'bar-16', height: 2 },
+  { id: 'bar-17', height: 1 }
+];
+
 export default function HermesAssistant({
   onNewUserMessage,
+  onApproveAction,
+  onRejectAction,
   chatHistory,
   isWaitingForModel,
   onSaveToDrive,
@@ -69,7 +93,7 @@ export default function HermesAssistant({
       "Est-ce que tous les frigos à vaccins respectent la chaîne du froid ?"
     ];
     
-    const randomSpeech = speechChoices[Math.floor(Math.random() * speechChoices.length)];
+    const randomSpeech = speechChoices[recordingDuration % speechChoices.length];
     onNewUserMessage(randomSpeech);
   };
 
@@ -145,11 +169,83 @@ export default function HermesAssistant({
                 {msg.actionExecuted && (
                   <div className="mt-2.5 pt-2 border-t border-brand-border space-y-1.5 font-sans">
                     <div className="text-[10px] font-mono text-brand-primary uppercase tracking-wide flex items-center gap-1 font-bold">
-                      <span className="h-1.5 w-1.5 rounded-full bg-brand-primary"></span>
+                      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-brand-primary" />
                       Action exécutée par Hermes :
                     </div>
                     <div className="p-2 bg-brand-surface rounded border border-brand-border text-xs text-brand-text-muted">
                       <strong>{msg.actionExecuted.description}</strong>
+                    </div>
+                  </div>
+                )}
+
+                {msg.actionProposal && (
+                  <div className="mt-2.5 pt-3 border-t border-brand-border space-y-3 font-sans">
+                    <div className="text-[10px] font-mono text-brand-alert uppercase tracking-wide flex items-center gap-1 font-bold">
+                      <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-brand-alert animate-pulse" />
+                      Action en attente de validation
+                    </div>
+                    <div className="rounded-2xl border border-brand-border bg-brand-surface p-3 space-y-2">
+                      <div className="text-sm font-semibold text-brand-text-dark">{msg.actionProposal.title}</div>
+                      <div className="grid grid-cols-1 gap-2 text-[11px] font-mono text-brand-text-muted">
+                        {msg.actionProposal.details?.grossist && (
+                          <div className="flex items-center justify-between gap-3 rounded-lg bg-white border border-brand-border px-3 py-2">
+                            <span>Grossiste</span>
+                            <span className="text-brand-text-dark font-semibold">{msg.actionProposal.details.grossist}</span>
+                          </div>
+                        )}
+                        {msg.actionProposal.details?.items && (
+                          <div className="rounded-lg bg-white border border-brand-border px-3 py-2">
+                            <div className="mb-2 text-brand-text-dark font-semibold">Articles proposés</div>
+                            <div className="space-y-1">
+                              {msg.actionProposal.details.items.map((item: any) => (
+                                <div key={`${item.productId}-${item.name}`} className="flex items-center justify-between gap-3">
+                                  <span className="truncate">{item.name}</span>
+                                  <span className="text-brand-text-dark font-semibold">x{item.quantity}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {msg.actionProposal.details?.day && (
+                          <div className="flex items-center justify-between gap-3 rounded-lg bg-white border border-brand-border px-3 py-2">
+                            <span>Jour</span>
+                            <span className="text-brand-text-dark font-semibold">{msg.actionProposal.details.day}</span>
+                          </div>
+                        )}
+                        {msg.actionProposal.details?.shift && (
+                          <div className="flex items-center justify-between gap-3 rounded-lg bg-white border border-brand-border px-3 py-2">
+                            <span>Shift</span>
+                            <span className="text-brand-text-dark font-semibold">{msg.actionProposal.details.shift}</span>
+                          </div>
+                        )}
+                        {msg.actionProposal.details?.sensorId && (
+                          <div className="flex items-center justify-between gap-3 rounded-lg bg-white border border-brand-border px-3 py-2">
+                            <span>Capteur</span>
+                            <span className="text-brand-text-dark font-semibold">{msg.actionProposal.details.sensorId}</span>
+                          </div>
+                        )}
+                        {msg.actionProposal.details?.reportType && (
+                          <div className="flex items-center justify-between gap-3 rounded-lg bg-white border border-brand-border px-3 py-2">
+                            <span>Rapport</span>
+                            <span className="text-brand-text-dark font-semibold">{msg.actionProposal.details.reportType}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => onApproveAction(msg.id)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-primary text-white text-[11px] font-semibold hover:bg-brand-primary-hover transition-colors shadow-sm"
+                      >
+                        <CheckCircle2 size={12} />
+                        Confirmer
+                      </button>
+                      <button
+                        onClick={() => onRejectAction(msg.id)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-brand-border text-[11px] font-semibold text-brand-text-muted hover:bg-brand-primary-light/50 transition-colors"
+                      >
+                        Annuler
+                      </button>
                     </div>
                   </div>
                 )}
@@ -179,7 +275,7 @@ export default function HermesAssistant({
         <div className="px-4 py-2 border-t border-brand-border flex gap-2 overflow-x-auto whitespace-nowrap scrollbar-none scroll-smooth bg-brand-surface">
           {SUGGESTIONS.map((sug, i) => (
             <button
-              key={i}
+              key={sug}
               onClick={() => handleSuggestionClick(sug)}
               className="text-[11px] font-mono bg-white border border-brand-border hover:bg-brand-primary-light text-brand-text-muted hover:text-brand-primary px-2.5 py-1 rounded-full transition-colors cursor-pointer"
             >
@@ -199,16 +295,16 @@ export default function HermesAssistant({
 
           {/* Soundwave animated bar */}
           <div className="flex items-center justify-center gap-1.5 h-12 w-full">
-            {[1, 2, 3, 4, 5, 4, 3, 2, 1, 2, 3, 4, 5, 4, 3, 2, 1].map((val, i) => (
+            {WAVEFORM_BARS.map((bar, index) => (
               <motion.div
-                key={i}
+                key={bar.id}
                 animate={{
-                  height: [12, val * 8, 12]
+                  height: [12, bar.height * 8, 12]
                 }}
                 transition={{
                   duration: 0.8,
                   repeat: Infinity,
-                  delay: i * 0.05
+                  delay: index * 0.05
                 }}
                 className="w-1 bg-brand-primary rounded-full"
               />

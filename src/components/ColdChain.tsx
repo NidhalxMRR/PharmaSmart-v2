@@ -159,22 +159,22 @@ export default function ColdChain({
                   data={selectedSensor.history}
                   margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E4E0D5" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#D7E5DF" />
                   <XAxis 
                     dataKey="time" 
-                    stroke="#5B7C71" 
-                    tick={{ fill: '#2C3E35', fontSize: 10 }}
+                    stroke="#0B3D2E" 
+                    tick={{ fill: '#0F1F19', fontSize: 10 }}
                   />
                   <YAxis 
-                    stroke="#5B7C71" 
-                    tick={{ fill: '#2C3E35', fontSize: 10 }}
+                    stroke="#0B3D2E" 
+                    tick={{ fill: '#0F1F19', fontSize: 10 }}
                     domain={[(dataMin: number) => Math.floor(dataMin - 1), (dataMax: number) => Math.ceil(dataMax + 1)]}
                   />
                   <Tooltip 
                     contentStyle={{ 
                       backgroundColor: '#FFFFFF', 
-                      borderColor: '#E4E0D5',
-                      color: '#2C3E35',
+                      borderColor: '#D7E5DF',
+                      color: '#0F1F19',
                       fontFamily: 'monospace'
                     }} 
                   />
@@ -182,7 +182,7 @@ export default function ColdChain({
                     type="monotone" 
                     dataKey="temperature" 
                     name="Température (°C)"
-                    stroke={selectedSensor.status === 'Critical' ? '#ef4444' : '#5B7C71'} 
+                    stroke={selectedSensor.status === 'Critical' ? '#ef4444' : '#0B3D2E'} 
                     strokeWidth={2}
                     dot={{ r: 4, strokeWidth: 1, fill: '#FFFFFF' }}
                     activeDot={{ r: 6 }}

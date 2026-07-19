@@ -13,6 +13,17 @@ export interface Product {
   isOutOfStock: boolean;
 }
 
+export interface SupplierProfile {
+  grossist: Product['grossist'];
+  region: string;
+  contactName: string;
+  phone: string;
+  email: string;
+  leadTimeDays: number;
+  serviceLevel: 'Excellent' | 'Bon' | 'Moyen';
+  notes: string;
+}
+
 export interface SensorReading {
   id: string;
   name: string;
@@ -42,6 +53,11 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   isAudio?: boolean;
+  actionProposal?: {
+    action: 'create_order' | 'update_schedule' | 'resolve_sensor' | 'generate_report';
+    title: string;
+    details: any;
+  };
   actionExecuted?: {
     type: 'order' | 'schedule' | 'cold_chain' | 'drive_upload';
     description: string;
