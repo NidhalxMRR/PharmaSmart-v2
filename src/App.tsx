@@ -11,11 +11,13 @@ import ColdChain from './components/ColdChain';
 import StaffScheduler from './components/StaffScheduler';
 import GoogleDriveBrowser from './components/GoogleDriveBrowser';
 import HermesAssistant from './components/HermesAssistant';
+import Suppliers from './components/Suppliers';
 import { User } from 'firebase/auth';
 import { initAuth } from './lib/auth';
 import { 
   LayoutDashboard, 
   Package, 
+  Building2,
   Thermometer, 
   Users, 
   HardDrive, 
@@ -153,7 +155,7 @@ export default function App() {
   };
 
   // Send purchase orders to backend
-  const handlePlaceOrder = async (grossist: string, items: Array<{ productId: string; name: string; quantity: number; price: number }>) => {
+  const handlePlaceOrder = async (grossist: string, items: Array<{ productId: string; name: string; quantity: number; price: number }>): Promise<boolean> => {
     try {
       const res = await fetch('/api/orders', {
         method: 'POST',
@@ -163,14 +165,17 @@ export default function App() {
       if (res.ok) {
         // refresh stocks from backend
         fetchData();
+        return true;
       }
+      return false;
     } catch (e) {
       console.error('Error placing purchase order:', e);
+      return false;
     }
   };
 
   // Modify staff schedule shift
-  const handleUpdateShift = async (staffId: string, day: string, shift: 'Matin' | 'Après-midi' | 'Garde' | 'Repos') => {
+  const handleUpdateShift = async (staffId: string, day: string, shift: 'Matin' | 'Après-midi' | 'Garde' | 'Repos'): Promise<boolean> => {
     const member = staff.find(s => s.id === staffId);
     if (!member) return;
 
@@ -187,14 +192,17 @@ export default function App() {
       });
       if (res.ok) {
         setStaff(prev => prev.map(s => s.id === staffId ? { ...s, schedule: updatedSchedule } : s));
+        return true;
       }
+      return false;
     } catch (e) {
       console.error('Error updating staff shift:', e);
+      return false;
     }
   };
 
   // Resolve active IoT sensor alerts
-  const handleResolveSensor = async (sensorId: string) => {
+  const handleResolveSensor = async (sensorId: string): Promise<boolean> => {
     // find sensor location
     const s = sensors.find(item => item.id === sensorId);
     if (!s) return;
@@ -213,9 +221,12 @@ export default function App() {
       });
       if (res.ok) {
         setSensors(prev => prev.map(item => item.id === sensorId ? { ...item, temperature: safeTemp, status: 'Normal' } : item));
+        return true;
       }
+      return false;
     } catch (e) {
       console.error('Error resolving sensor alert:', e);
+      return false;
     }
   };
 
@@ -288,7 +299,11 @@ export default function App() {
 
       // Handle server-proposed agentic actions
       if (data.action) {
-        await executeAgentAction(data.action, modelMsg);
+        modelMsg.actionProposal = {
+          action: data.action.action,
+          title: getActionProposalTitle(data.action),
+          details: data.action
+        };
       }
 
       setChatHistory(prev => [...prev, modelMsg]);
@@ -309,8 +324,40 @@ export default function App() {
     }
   };
 
+  const getActionProposalTitle = (action: any) => {
+    switch (action.action) {
+      case 'create_order':
+        return `Préparer une commande pour ${action.grossist || 'le grossiste sélectionné'}`;
+      case 'update_schedule':
+        return `Modifier le planning de ${action.staffId || 'un membre de l'équipe'}`;
+      case 'resolve_sensor':
+        return `Réinitialiser l'alerte du capteur ${action.sensorId || 'concerné'}`;
+      case 'generate_report':
+        return `Générer et exporter le rapport ${action.reportType || 'demandé'}`;
+      default:
+        return 'Action proposée par Hermes';
+    }
+  };
+
+  const rejectAction = (messageId: string) => {
+    setChatHistory(prev => prev.map(msg => (
+      msg.id === messageId
+        ? { ...msg, content: `${msg.content}\n\nAction annulée par l'utilisateur.`, actionProposal: undefined }
+        : msg
+    )));
+  };
+
+  const approveAction = async (messageId: string) => {
+    const message = chatHistory.find(msg => msg.id === messageId);
+    if (!message?.actionProposal) return;
+    await executeAgentAction(message.actionProposal.details, messageId);
+  };
+
   // Interpreter loop for AI tool suggestions
-  const executeAgentAction = async (action: any, modelMessage: ChatMessage) => {
+  const executeAgentAction = async (action: any, messageId: string) => {
+    let executedAction: ChatMessage['actionExecuted'] | null = null;
+    let contentSuffix: string | null = null;
+
     switch (action.action) {
       case 'create_order':
         // Automate placing the draft purchase order to selected grossist
@@ -327,14 +374,17 @@ export default function App() {
           };
         });
 
-        await handlePlaceOrder(targetGrossist, itemsToOrder);
+          const orderSuccess = await handlePlaceOrder(targetGrossist, itemsToOrder);
         setActiveTab('stock');
-        
-        modelMessage.actionExecuted = {
-          type: 'order',
-          description: `Commande automatique de ${itemsToOrder.length} articles transmise chez le grossiste ${targetGrossist}.`,
-          details: itemsToOrder
-        };
+          if (orderSuccess) {
+            executedAction = {
+              type: 'order',
+              description: `Commande automatique de ${itemsToOrder.length} articles transmise chez le grossiste ${targetGrossist}.`,
+              details: itemsToOrder
+            };
+          } else {
+            contentSuffix = "\n\n⚠️ Erreur : la commande n'a pas pu être transmise.";
+          }
         break;
 
       case 'update_schedule':
@@ -343,35 +393,43 @@ export default function App() {
         const targetDay = action.day;
         const targetShift = action.shift; // 'Matin' | 'Après-midi' | 'Garde' | 'Repos'
         
-        await handleUpdateShift(sId, targetDay, targetShift);
+        const scheduleSuccess = await handleUpdateShift(sId, targetDay, targetShift);
         setActiveTab('staff');
 
-        const memberName = staff.find(s => s.id === sId)?.name || 'Collaborateur';
-        modelMessage.actionExecuted = {
-          type: 'schedule',
-          description: `Changement du planning de ${memberName} le ${targetDay} en position de '${targetShift}'.`,
-          details: { sId, targetDay, targetShift }
-        };
+        if (scheduleSuccess) {
+          const memberName = staff.find(s => s.id === sId)?.name || 'Collaborateur';
+          executedAction = {
+            type: 'schedule',
+            description: `Changement du planning de ${memberName} le ${targetDay} en position de '${targetShift}'.`,
+            details: { sId, targetDay, targetShift }
+          };
+        } else {
+          contentSuffix = "\n\n⚠️ Erreur : la modification de planning n'a pas pu être enregistrée.";
+        }
         break;
 
       case 'resolve_sensor':
         // Resolve sensor alarm automatically
         const targetSensorId = action.sensorId || 's1';
-        await handleResolveSensor(targetSensorId);
+        const resolveSuccess = await handleResolveSensor(targetSensorId);
         setActiveTab('overview');
 
-        const sName = sensors.find(s => s.id === targetSensorId)?.name || 'Réfrigérateur';
-        modelMessage.actionExecuted = {
-          type: 'cold_chain',
-          description: `Réinitialisation électrique et stabilisation du thermostat pour '${sName}'.`,
-          details: { targetSensorId }
-        };
+        if (resolveSuccess) {
+          const sName = sensors.find(s => s.id === targetSensorId)?.name || 'Réfrigérateur';
+          executedAction = {
+            type: 'cold_chain',
+            description: `Réinitialisation électrique et stabilisation du thermostat pour '${sName}'.`,
+            details: { targetSensorId }
+          };
+        } else {
+          contentSuffix = "\n\n⚠️ Erreur : le capteur n'a pas pu être réinitialisé.";
+        }
         break;
 
       case 'generate_report':
         // Automate compilation of a report and upload to user's Google Drive
         if (!isDriveConnected) {
-          modelMessage.content += "\n\n⚠️ Note : Je n'ai pas pu exporter le rapport vers Google Drive car votre compte n'est pas connecté. Veuillez l'activer dans l'onglet 'Google Drive'.";
+          contentSuffix = "\n\n⚠️ Note : Je n'ai pas pu exporter le rapport vers Google Drive car votre compte n'est pas connecté. Veuillez l'activer dans l'onglet 'Google Drive'.";
           break;
         }
 
@@ -402,25 +460,34 @@ export default function App() {
 
         const uploadSuccess = await handleSaveToDrive(fileTitle, reportText);
         if (uploadSuccess) {
-          modelMessage.actionExecuted = {
+          executedAction = {
             type: 'drive_upload',
             description: `Le rapport '${fileTitle}' a été généré et sauvegardé directement sur votre Google Drive.`,
             details: { fileTitle }
           };
           setActiveTab('drive');
         } else {
-          modelMessage.content += "\n\n⚠️ Erreur : Échec du téléversement vers votre Drive.";
+          contentSuffix = "\n\n⚠️ Erreur : Échec du téléversement vers votre Drive.";
         }
         break;
 
       default:
         console.warn('Unknown action proposed by LLM:', action);
     }
+
+    if (executedAction || contentSuffix) {
+      setChatHistory(prev => prev.map(msg => (
+        msg.id === messageId
+          ? { ...msg, content: contentSuffix ? `${msg.content}${contentSuffix}` : msg.content, actionExecuted: executedAction || undefined, actionProposal: undefined }
+          : msg
+      )));
+    }
   };
 
   const navItems = [
     { id: 'overview', label: 'Vue d\'ensemble', icon: LayoutDashboard },
     { id: 'stock', label: 'Stocks & ERP', icon: Package },
+    { id: 'suppliers', label: 'Fournisseurs', icon: Building2 },
     { id: 'cold', label: 'Chaîne du froid', icon: Thermometer },
     { id: 'staff', label: 'Équipe & Plannings', icon: Users },
     { id: 'drive', label: 'Rapports Google Drive', icon: HardDrive },
@@ -562,6 +629,9 @@ export default function App() {
                   isDriveConnected={isDriveConnected}
                 />
               )}
+              {activeTab === 'suppliers' && (
+                <Suppliers />
+              )}
               {activeTab === 'cold' && (
                 <ColdChain
                   sensors={sensors}
@@ -600,6 +670,8 @@ export default function App() {
           <div className="flex-1 h-full overflow-hidden">
             <HermesAssistant
               onNewUserMessage={handleNewUserMessage}
+              onApproveAction={approveAction}
+              onRejectAction={rejectAction}
               chatHistory={chatHistory}
               isWaitingForModel={isWaitingForModel}
               onSaveToDrive={handleSaveToDrive}

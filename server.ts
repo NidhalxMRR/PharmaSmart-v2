@@ -1,10 +1,9 @@
 import express from 'express';
-import path from 'path';
+import path from 'node:path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
-import { INITIAL_PRODUCTS, INITIAL_SENSORS, INITIAL_STAFF } from './src/data/mockData';
-import { Product, SensorReading, StaffShift } from './src/types';
+import { INITIAL_PRODUCTS, INITIAL_SENSORS, INITIAL_STAFF, INITIAL_SUPPLIERS } from './src/data/mockData';
 
 // Load environment variables
 dotenv.config();
@@ -92,6 +91,29 @@ async function startServer() {
     res.json({ success: true, staff: staff.find((s) => s.id === id) });
   });
 
+  app.get('/api/suppliers', (req, res) => {
+    const suppliers = INITIAL_SUPPLIERS.map((supplier) => {
+      const supplierProducts = products.filter(product => product.grossist === supplier.grossist);
+      const outOfStock = supplierProducts.filter(product => product.isOutOfStock).length;
+      const expiringSoon = supplierProducts.filter(product => {
+        const expiry = new Date(product.expiryDate);
+        const diffMonths = (expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30);
+        return diffMonths > 0 && diffMonths <= 3;
+      }).length;
+
+      return {
+        ...supplier,
+        productCount: supplierProducts.length,
+        outOfStock,
+        expiringSoon,
+        stockValue: supplierProducts.reduce((total, product) => total + (product.stock * product.price), 0),
+        topCategories: Array.from(new Set(supplierProducts.map(product => product.category)))
+      };
+    });
+
+    res.json(suppliers);
+  });
+
   // Orders endpoints
   app.get('/api/orders', (req, res) => {
     res.json(orders);
@@ -100,7 +122,7 @@ async function startServer() {
   app.post('/api/orders', (req, res) => {
     const { grossist, items, totalPrice } = req.body;
     const newOrder = {
-      id: `ord-${Math.floor(100 + Math.random() * 900)}`,
+      id: `ord-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
       date: new Date().toISOString(),
       grossist,
       status: 'Envoyé',
@@ -148,7 +170,7 @@ Voici l'état actuel en temps réel de l'officine (grounding data) :
    - Références actuellement en rupture : ${products.filter(p => p.isOutOfStock).length} produits.
    - Produits proches de la péremption (< 3 mois) : ${products.filter(p => {
      const expiry = new Date(p.expiryDate);
-     const diffMonths = (expiry.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24 * 30);
+    const diffMonths = (expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30);
      return diffMonths > 0 && diffMonths <= 3;
    }).length} produits.
 
