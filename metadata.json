@@ -1,0 +1,8 @@
+{
+  "name": "PharmaSmart",
+  "description": "The always-on agentic layer that runs your pharmacy\u0027s stock, cold chain, staff, and ERP — by voice or chat with Google Drive integration and plz keep the last css theme and design",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
