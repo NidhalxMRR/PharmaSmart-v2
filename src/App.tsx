@@ -329,7 +329,7 @@ export default function App() {
       case 'create_order':
         return `Préparer une commande pour ${action.grossist || 'le grossiste sélectionné'}`;
       case 'update_schedule':
-        return `Modifier le planning de ${action.staffId || 'un membre de l'équipe'}`;
+        return `Modifier le planning de ${action.staffId || "un membre de l'équipe"}`;
       case 'resolve_sensor':
         return `Réinitialiser l'alerte du capteur ${action.sensorId || 'concerné'}`;
       case 'generate_report':
