@@ -48,6 +48,68 @@ async function startServer() {
     });
   }
 
+  const buildDemoChatResponse = (message: string) => {
+    const normalizedMessage = message.toLowerCase();
+
+    const outOfStockCount = products.filter((product) => product.isOutOfStock).length;
+    const expiringSoonCount = products.filter((product) => {
+      const expiry = new Date(product.expiryDate);
+      const diffMonths = (expiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24 * 30);
+      return diffMonths > 0 && diffMonths <= 3;
+    }).length;
+
+    if (normalizedMessage.includes('commande') || normalizedMessage.includes('approv') || normalizedMessage.includes('stock')) {
+      return {
+        text: `Mode demo actif. Je vois ${outOfStockCount} ruptures et ${expiringSoonCount} produits proches de la péremption. Je peux préparer un réassort sur Cogepha ou PCT si tu veux.`,
+        action: {
+          action: 'create_order',
+          grossist: 'Cogepha',
+          items: products
+            .filter((product) => product.isOutOfStock)
+            .slice(0, 2)
+            .map((product) => ({ productId: product.id, quantity: Math.max(product.minStock, 10) }))
+        }
+      };
+    }
+
+    if (normalizedMessage.includes('planning') || normalizedMessage.includes('garde') || normalizedMessage.includes('dimanche')) {
+      return {
+        text: `Mode demo actif. Je peux proposer un ajustement de planning sur l'équipe si tu me dis le membre concerné. Actuellement, la couverture du week-end peut être vérifiée rapidement dans l'onglet staff.`,
+        action: {
+          action: 'update_schedule',
+          staffId: 'st3',
+          day: 'Dimanche',
+          shift: 'Matin'
+        }
+      };
+    }
+
+    if (normalizedMessage.includes('temperature') || normalizedMessage.includes('froid') || normalizedMessage.includes('frigo')) {
+      return {
+        text: `Mode demo actif. Tous les capteurs restent dans une plage normale pour le moment. Si tu veux, je peux simuler une alerte de chaîne du froid à des fins de démonstration.`,
+        action: {
+          action: 'resolve_sensor',
+          sensorId: 's1'
+        }
+      };
+    }
+
+    if (normalizedMessage.includes('rapport') || normalizedMessage.includes('export')) {
+      return {
+        text: 'Mode demo actif. Je peux préparer un rapport d\'inventaire, de planning ou de chaîne du froid pour la démonstration.',
+        action: {
+          action: 'generate_report',
+          reportType: 'inventory',
+          title: 'PharmaSmart - Rapport inventaire demo'
+        }
+      };
+    }
+
+    return {
+      text: `Mode demo actif. Je peux t'aider sur les ruptures, le planning et la chaîne du froid. En ce moment, il y a ${outOfStockCount} ruptures et ${expiringSoonCount} produits proches de la péremption.`
+    };
+  };
+
   // --- API Routes ---
 
   // Health check
@@ -154,9 +216,7 @@ async function startServer() {
       const { message, history } = req.body;
 
       if (!ai) {
-        return res.status(500).json({
-          error: 'Gemini API Key is not configured. Please add GEMINI_API_KEY to your Secrets.'
-        });
+        return res.json(buildDemoChatResponse(message || ''));
       }
 
       // Format current pharmacy context to ground the LLM
@@ -263,7 +323,7 @@ Soyez extrêmement concis et efficace dans vos réponses. Évitez les formules d
 
     } catch (error: any) {
       console.error('Chat API Error:', error);
-      res.status(500).json({ error: error.message || 'An error occurred during processing.' });
+      res.json(buildDemoChatResponse(req.body?.message || ''));
     }
   });
 

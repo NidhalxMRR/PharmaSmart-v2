@@ -2,12 +2,27 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, User } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
+const isPlaceholderKey = (value: string | undefined | null) => {
+  if (!value) return true;
+  return /REPLACE_WITH_|MY_[A-Z0-9_]+_API_KEY|YOUR_|CHANGE_ME/i.test(value);
+};
+
+const resolvedApiKey = import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey;
+const hasValidApiKey = !isPlaceholderKey(resolvedApiKey);
+
 // Initialize Firebase App
-const app = initializeApp({
-  ...firebaseConfig,
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || firebaseConfig.apiKey,
-});
-const auth = getAuth(app);
+const app = initializeApp(
+  hasValidApiKey
+    ? {
+        ...firebaseConfig,
+        apiKey: resolvedApiKey,
+      }
+    : {
+        ...firebaseConfig,
+        apiKey: 'demo-mode-disabled',
+      }
+);
+const auth = hasValidApiKey ? getAuth(app) : null;
 
 const provider = new GoogleAuthProvider();
 // Request Google Drive Scopes
@@ -29,6 +44,11 @@ export const initAuth = (
   onAuthSuccess?: (user: User, token: string | null) => void,
   onAuthFailure?: () => void
 ) => {
+  if (!auth) {
+    if (onAuthFailure) onAuthFailure();
+    return () => undefined;
+  }
+
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
       if (cachedAccessToken) {
@@ -48,6 +68,10 @@ export const initAuth = (
 
 // Must be called from a button click or user interaction
 export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
+  if (!auth) {
+    throw new Error('Firebase Auth is disabled in demo mode. Set VITE_FIREBASE_API_KEY to enable Google Drive.');
+  }
+
   try {
     isSigningIn = true;
     const result = await signInWithPopup(auth, provider);
@@ -75,6 +99,11 @@ export const setAccessToken = (token: string) => {
 };
 
 export const logout = async () => {
+  if (!auth) {
+    cachedAccessToken = null;
+    return;
+  }
+
   await auth.signOut();
   cachedAccessToken = null;
 };
