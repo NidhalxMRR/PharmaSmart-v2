@@ -1,0 +1,142 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pharmasmart}
+      POSTGRES_USER: ${POSTGRES_USER:-pharmasmart}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pharmasmart_dev_password}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+
+  migrate:
+    image: postgres:16-alpine
+    restart: "no"
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-pharmasmart_dev_password}
+    volumes:
+      - ./db/init.sql:/schema/init.sql:ro
+    command:
+      - psql
+      - -h
+      - postgres
+      - -U
+      - ${POSTGRES_USER:-pharmasmart}
+      - -d
+      - ${POSTGRES_DB:-pharmasmart}
+      - -v
+      - ON_ERROR_STOP=1
+      - -f
+      - /schema/init.sql
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  mqtt-certgen:
+    build:
+      context: ./iot/certgen
+    restart: "no"
+    environment:
+      MQTT_CERT_CN: ${MQTT_CERT_CN:-localhost}
+      MQTT_CERT_SAN: ${MQTT_CERT_SAN:-DNS:localhost}
+      MQTT_CERT_DAYS: ${MQTT_CERT_DAYS:-365}
+      MQTT_REGENERATE_CERTS: ${MQTT_REGENERATE_CERTS:-false}
+    volumes:
+      - ./iot/certs:/certs
+
+  mqtt-auth-init:
+    build:
+      context: ./iot/mqtt-init
+    restart: "no"
+    environment:
+      MQTT_DEVICE_USERNAME: ${MQTT_DEVICE_USERNAME:-esp32-fridge-01}
+      MQTT_DEVICE_PASSWORD: ${MQTT_DEVICE_PASSWORD:-change-device-password}
+      MQTT_INGEST_USERNAME: ${MQTT_INGEST_USERNAME:-pharmasmart-ingestion}
+      MQTT_INGEST_PASSWORD: ${MQTT_INGEST_PASSWORD:-change-ingestion-password}
+      IOT_PHARMACY_ID: ${IOT_PHARMACY_ID:-main}
+      IOT_DEVICE_ID: ${IOT_DEVICE_ID:-esp32-fridge-01}
+    volumes:
+      - mqtt_auth:/mosquitto/auth
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    environment:
+      MQTT_INGEST_USERNAME: ${MQTT_INGEST_USERNAME:-pharmasmart-ingestion}
+      MQTT_INGEST_PASSWORD: ${MQTT_INGEST_PASSWORD:-change-ingestion-password}
+      IOT_PHARMACY_ID: ${IOT_PHARMACY_ID:-main}
+      IOT_DEVICE_ID: ${IOT_DEVICE_ID:-esp32-fridge-01}
+    ports:
+      - "${MQTT_TLS_PORT:-8883}:8883"
+    volumes:
+      - ./iot/mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./iot/certs:/mosquitto/certs:ro
+      - mqtt_auth:/mosquitto/auth:ro
+      - mqtt_data:/mosquitto/data
+    depends_on:
+      mqtt-certgen:
+        condition: service_completed_successfully
+      mqtt-auth-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          mosquitto_pub -h 127.0.0.1 -p 1883
+          -u "$${MQTT_INGEST_USERNAME}" -P "$${MQTT_INGEST_PASSWORD}"
+          -t "pharmasmart/$${IOT_PHARMACY_ID}/devices/$${IOT_DEVICE_ID}/ack"
+          -m health -q 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  ingestion:
+    build:
+      context: ./iot/ingestion
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pharmasmart}:${POSTGRES_PASSWORD:-pharmasmart_dev_password}@postgres:5432/${POSTGRES_DB:-pharmasmart}
+      MQTT_HOST: mosquitto
+      MQTT_INTERNAL_PORT: 1883
+      MQTT_INGEST_USERNAME: ${MQTT_INGEST_USERNAME:-pharmasmart-ingestion}
+      MQTT_INGEST_PASSWORD: ${MQTT_INGEST_PASSWORD:-change-ingestion-password}
+      MQTT_INGEST_CLIENT_ID: ${MQTT_INGEST_CLIENT_ID:-pharmasmart-ingestion}
+      MQTT_TOPIC_FILTER: pharmasmart/+/devices/+/telemetry
+      MQTT_TOPIC_PREFIX: pharmasmart
+      IOT_WARNING_MARGIN_C: ${IOT_WARNING_MARGIN_C:-0.5}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      mosquitto:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      args:
+        VITE_FIREBASE_API_KEY: ${VITE_FIREBASE_API_KEY:-}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${POSTGRES_USER:-pharmasmart}:${POSTGRES_PASSWORD:-pharmasmart_dev_password}@postgres:5432/${POSTGRES_DB:-pharmasmart}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  postgres_data:
+  mqtt_auth:
+  mqtt_data:

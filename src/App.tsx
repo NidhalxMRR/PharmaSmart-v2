@@ -75,18 +75,17 @@ export default function App() {
       }
     );
 
-    // Periodically simulate small temperature fluctuations for realistic feel
-    const interval = setInterval(() => {
-      setSensors(prev => prev.map(s => {
-        // Only fluctuate if status is normal
-        if (s.status === 'Normal') {
-          const delta = (Math.random() - 0.5) * 0.2;
-          const newTemp = Math.min(s.maxTemp + 0.5, Math.max(s.minTemp - 0.5, s.temperature + delta));
-          return { ...s, temperature: newTemp };
+    // Poll persisted IoT readings so MQTT telemetry appears without a page reload.
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch('/api/sensors');
+        if (response.ok) {
+          setSensors(await response.json());
         }
-        return s;
-      }));
-    }, 12000);
+      } catch (error) {
+        console.error('Error refreshing IoT sensor readings:', error);
+      }
+    }, 10000);
 
     return () => {
       unsubscribe();

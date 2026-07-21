@@ -1,0 +1,29 @@
+FROM debian:bookworm-slim
+
+ARG ARDUINO_CLI_VERSION=1.5.0
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl \
+    && curl -fsSL \
+      "https://github.com/arduino/arduino-cli/releases/download/v${ARDUINO_CLI_VERSION}/arduino-cli_${ARDUINO_CLI_VERSION}_Linux_64bit.tar.gz" \
+      -o /tmp/arduino-cli.tar.gz \
+    && tar -xzf /tmp/arduino-cli.tar.gz -C /usr/local/bin arduino-cli \
+    && rm -rf /var/lib/apt/lists/* /tmp/arduino-cli.tar.gz
+
+RUN arduino-cli config init --overwrite \
+    && arduino-cli config set board_manager.additional_urls \
+      https://espressif.github.io/arduino-esp32/package_esp32_index.json \
+    && arduino-cli core update-index \
+    && arduino-cli core install esp32:esp32 \
+    && arduino-cli lib install "DHT sensor library" \
+    && arduino-cli lib install "Adafruit Unified Sensor" \
+    && arduino-cli lib install "ArduinoMqttClient"
+
+COPY pharmasmart_dht11 /sketch/pharmasmart_dht11
+
+RUN cp /sketch/pharmasmart_dht11/secrets.example.h \
+      /sketch/pharmasmart_dht11/secrets.h \
+    && arduino-cli compile \
+      --fqbn esp32:esp32:esp32 \
+      --warnings all \
+      /sketch/pharmasmart_dht11

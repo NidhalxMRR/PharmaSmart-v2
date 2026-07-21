@@ -96,6 +96,36 @@ npm start
 This runs a Vite build for the frontend and bundles the backend with esbuild
 into `dist/server.cjs`.
 
+## Run with Docker Compose
+
+The Compose stack starts the production application and PostgreSQL together.
+The first database startup creates the normalized schema and seeds it from the
+structures formerly served by `src/data/mockData.ts`.
+
+```bash
+cp .env.example .env
+docker compose up --build -d
+```
+
+Open <http://localhost:3000>. Check both services with:
+
+```bash
+docker compose ps
+docker compose logs -f app
+```
+
+PostgreSQL data is persisted in the `postgres_data` volume. The migration
+service runs the idempotent schema and seed script before the app starts, so
+existing volumes receive new tables without overwriting operational data.
+
+### IoT temperature pipeline
+
+The Compose stack also runs an authenticated Mosquitto broker and a dedicated
+Python ingestion worker. ESP32 telemetry enters through MQTT/TLS port `8883`,
+is validated and deduplicated, and is stored in PostgreSQL for the existing
+cold-chain dashboard. See [`iot/README.md`](./iot/README.md) for the device
+topic, JSON payload, TLS setup, and operational commands.
+
 ## Deployment
 
 The production instance runs on a VPS as a systemd service with automatic
@@ -109,6 +139,9 @@ day-to-day commands (`systemctl status`, `journalctl -f`, redeploying after a
 |---|---|---|
 | `GEMINI_API_KEY` | Hermes chat backend | Hermes runs in local demo-response mode |
 | `VITE_FIREBASE_API_KEY` | Google sign-in / Drive export | Auth stays disabled, no console errors |
+| `DATABASE_URL` | PostgreSQL connection | Defaults to the local Compose-compatible development URL |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | Compose PostgreSQL service | Development defaults are provided; change the password before VPS deployment |
+| `APP_PORT`, `POSTGRES_PORT` | Host port mappings | Default to `3000` and `5432` |
 
 ## Team — TheGrandizers
 

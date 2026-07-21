@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+iot/certs/*
+!iot/certs/.gitkeep
+iot/esp32/pharmasmart_dht11/secrets.h
