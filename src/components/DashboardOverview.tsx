@@ -38,9 +38,12 @@ export default function DashboardOverview({
             Système d'exploitation autonome pour officine • Juin 2026
           </p>
         </div>
-        <div className="flex gap-2 font-mono text-xs text-brand-primary bg-brand-primary-light border border-brand-primary/20 px-3 py-1.5 rounded-md shadow-sm">
-          <span className="flex items-center gap-1.5 font-medium">
-            <span className="h-2 w-2 rounded-full bg-brand-primary animate-pulse"></span>
+        <div className="inline-flex items-center rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 font-mono text-xs font-semibold tracking-wide text-emerald-800 shadow-sm shadow-emerald-100/80">
+          <span className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50"></span>
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+            </span>
             AGENT HERMES CONNECTÉ
           </span>
         </div>
