@@ -8,15 +8,13 @@ interface DashboardOverviewProps {
   sensors: SensorReading[];
   staff: StaffShift[];
   onTabChange: (tab: string) => void;
-  onSimulateDrift: () => void;
 }
 
 export default function DashboardOverview({
   products,
   sensors,
   staff,
-  onTabChange,
-  onSimulateDrift
+  onTabChange
 }: DashboardOverviewProps) {
   const oosCount = products.filter(p => p.isOutOfStock).length;
   const criticalSensors = sensors.filter(s => s.status === 'Critical' || s.status === 'Warning');
@@ -123,12 +121,6 @@ export default function DashboardOverview({
               <Thermometer className="text-brand-primary" size={18} />
               Chaîne du Froid (IoT)
             </h2>
-            <button 
-              onClick={onSimulateDrift}
-              className="font-mono text-xs bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-2.5 py-1 rounded transition-colors"
-            >
-              Simuler dérive de temp
-            </button>
           </div>
 
           <div className="space-y-3">

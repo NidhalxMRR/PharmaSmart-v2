@@ -229,37 +229,6 @@ export default function App() {
     }
   };
 
-  // Simulate temperature drift (useful for showcasing agentic triggers!)
-  const handleTriggerDriftSimulation = async () => {
-    // Increase vaccine fridge to critical 9.4°C
-    const sensorId = 's1';
-    try {
-      const res = await fetch(`/api/sensors/${sensorId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          temperature: 9.4,
-          status: 'Critical'
-        })
-      });
-      if (res.ok) {
-        setSensors(prev => prev.map(item => item.id === sensorId ? { ...item, temperature: 9.4, status: 'Critical' } : item));
-        
-        // Add reactive notification block in Hermes Assistant
-        const alertMsg: ChatMessage = {
-          id: `drift-${Date.now()}`,
-          role: 'model',
-          content: "⚠️ ALERTE CRITIQUE : Le capteur [s1] 'Réfrigérateur Principal (Vaccins)' indique une dérive de température à 9.4°C (Seuil max: 8.0°C) ! La chaîne du froid est menacée.\n\nJe vous recommande d'activer le compresseur de secours ou d'appeler l'assistance. Dites-moi 'Résous l'alerte du réfrigérateur' pour que je réinitialise le circuit électrique principal de l'officine.",
-          timestamp: new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
-        };
-        setChatHistory(prev => [...prev, alertMsg]);
-        setIsAssistantOpen(true);
-      }
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
   // --- Conversational Chat Input Trigger ---
   const handleNewUserMessage = async (messageText: string) => {
     const userMsg: ChatMessage = {
@@ -617,7 +586,6 @@ export default function App() {
                   sensors={sensors}
                   staff={staff}
                   onTabChange={setActiveTab}
-                  onSimulateDrift={handleTriggerDriftSimulation}
                 />
               )}
               {activeTab === 'stock' && (

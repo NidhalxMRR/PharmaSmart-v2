@@ -6,8 +6,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-pharmasmart}
       POSTGRES_USER: ${POSTGRES_USER:-pharmasmart}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pharmasmart_dev_password}
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+    #ports:
+      #- "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/001-init.sql:ro
