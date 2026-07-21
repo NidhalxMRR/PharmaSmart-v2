@@ -42,7 +42,7 @@ export default function DashboardOverview({
           <span className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-50"></span>
-              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white"></span>
+              <span className="relative inline-flex h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-500 ring-2 ring-white"></span>
             </span>
             AGENT HERMES CONNECTÉ
           </span>
